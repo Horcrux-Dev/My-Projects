@@ -45,6 +45,9 @@ export interface Instrument {
   }
 }
 
+/** Level of imminent scheduled-event / news risk for the instrument. */
+export type EventRisk = 'CLEAR' | 'ELEVATED' | 'HIGH'
+
 /** Result of the SCAN stage for one instrument. */
 export interface ScanResult {
   instrument: Instrument
@@ -62,7 +65,21 @@ export interface ScanResult {
   /** Entry-timeframe (H1) trend bias. */
   ltfTrend: Direction
   trendAligned: boolean
+  /** Latest bar volume vs its 20-bar average, as a percentage (100 = average). */
+  volumePct: number
+  /** Scheduled-event / news risk window. */
+  eventRisk: EventRisk
+  eventNote: string
 }
+
+/** The five high-probability setup archetypes the signal engine flags. */
+export type SetupType =
+  | 'BREAKOUT'
+  | 'PULLBACK'
+  | 'MOMENTUM'
+  | 'CONTINUATION'
+  | 'REVERSAL'
+  | 'NONE'
 
 /** One indicator's vote toward a directional decision. */
 export interface SignalVote {
@@ -84,6 +101,12 @@ export interface SignalResult {
   /** Confidence percentage, 0..100. */
   confidence: number
   votes: SignalVote[]
+  /** The archetype the signal engine flagged (Detect stage). */
+  setupType: SetupType
+  /** Setup pattern quality, 0..100 (Score stage). */
+  setupQuality: number
+  /** Human-readable description of the flagged setup. */
+  setupNote: string
 }
 
 /** Result of the PLAN stage — the trade blueprint. */

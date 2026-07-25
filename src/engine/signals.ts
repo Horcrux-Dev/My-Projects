@@ -9,6 +9,7 @@ import {
   rsi,
   stochastic,
 } from './indicators'
+import { detectSetup } from './setups'
 
 // ============================================================================
 // SIGNALS stage — build a directional confluence score.
@@ -137,6 +138,22 @@ export function runSignals(scan: ScanResult, h1: Candle[]): SignalResult {
     votes.push({ name: 'Bollinger', value: label, direction: dir, weight: 0.08 })
   }
 
+  // --- Volume confirmation ---------------------------------------------------
+  {
+    // Volume can't vote a direction on its own — it confirms the current bar's
+    // drive. Above-average volume backs the candle's direction; thin volume is
+    // neutral.
+    const last = h1[h1.length - 1]
+    const barDir: Direction = last.close > last.open ? 'LONG' : last.close < last.open ? 'SHORT' : 'FLAT'
+    const dir: Direction = scan.volumePct >= 115 ? barDir : 'FLAT'
+    votes.push({
+      name: 'Volume',
+      value: `${scan.volumePct.toFixed(0)}% avg`,
+      direction: dir,
+      weight: 0.08,
+    })
+  }
+
   // --- Higher-timeframe alignment (the master filter) ------------------------
   votes.push({
     name: 'H4 Trend',
@@ -177,10 +194,19 @@ export function runSignals(scan: ScanResult, h1: Candle[]): SignalResult {
   const strength: SignalResult['strength'] =
     mag >= 55 ? 'STRONG' : mag >= 32 ? 'MODERATE' : 'WEAK'
 
-  // Confidence blends magnitude, trend alignment and regime quality.
+  // --- Detect + score the setup archetype (Signal Engine, page 3) -----------
+  const setup = detectSetup(h1, scan)
+  // A high-quality setup that agrees with the confluence direction lifts
+  // confidence; one that disagrees (e.g. a counter-trend reversal) tempers it.
+  const setupAgrees = setup.direction !== 'FLAT' && setup.direction === finalDir
+  const setupConflicts = setup.direction !== 'FLAT' && finalDir !== 'FLAT' && setup.direction !== finalDir
+
+  // Confidence blends magnitude, trend alignment, regime quality and setup.
   let confidence = mag
   if (scan.trendAligned) confidence += 12
   if (scan.regime === 'TRENDING') confidence += 8
+  if (setupAgrees) confidence += setup.quality * 0.12
+  if (setupConflicts) confidence -= 10
   confidence = Math.max(0, Math.min(99, Math.round(confidence)))
 
   return {
@@ -190,5 +216,8 @@ export function runSignals(scan: ScanResult, h1: Candle[]): SignalResult {
     strength,
     confidence,
     votes,
+    setupType: finalDir === 'FLAT' ? 'NONE' : setup.type,
+    setupQuality: setup.quality,
+    setupNote: setup.note,
   }
 }

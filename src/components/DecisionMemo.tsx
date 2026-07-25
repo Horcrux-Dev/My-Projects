@@ -1,5 +1,6 @@
 import type { DecisionMemo } from '../engine/types'
 import { fmtPrice } from '../engine/instruments'
+import { SETUP_LABEL } from '../engine/setups'
 import { Gauge, Pips, Stars, StrengthBar } from './ui'
 
 // The Final Decision Memo — the hero output, mirroring the "FINAL DECISION
@@ -25,8 +26,10 @@ export function DecisionMemoCard({ memo }: { memo: DecisionMemo }) {
       <MemoRow idx="1" title="Setup Summary">
         <div className="grid" style={{ gridTemplateColumns: '1fr auto', gap: 4 }}>
           <div>
+            <KV k="Setup Type" v={SETUP_LABEL[signal.setupType].toUpperCase()} accent />
             <KV k="Trend Alignment" v={scan.trendAligned ? 'YES' : 'NO'} good={scan.trendAligned} />
             <KV k="Market Condition" v={scan.regime === 'TRENDING' ? 'TRENDING' : 'IN RANGE'} />
+            <KV k="Event Risk" v={scan.eventRisk} good={scan.eventRisk === 'CLEAR'} warn={scan.eventRisk === 'HIGH'} />
             <KV k="Timeframe" v={plan.timeframe} />
           </div>
         </div>
@@ -151,13 +154,13 @@ function MemoRow({
   )
 }
 
-function KV({ k, v, good, accent }: { k: string; v: string; good?: boolean; accent?: boolean }) {
+function KV({ k, v, good, accent, warn }: { k: string; v: string; good?: boolean; accent?: boolean; warn?: boolean }) {
   return (
     <div className="drow" style={{ padding: '4px 0' }}>
       <span className="k">{k}</span>
       <span
         className="v"
-        style={{ color: good ? 'var(--green)' : accent ? 'var(--orange)' : undefined }}
+        style={{ color: warn ? 'var(--red)' : good ? 'var(--green)' : accent ? 'var(--orange)' : undefined }}
       >
         {v}
       </span>

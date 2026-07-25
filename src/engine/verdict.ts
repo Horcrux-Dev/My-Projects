@@ -57,12 +57,23 @@ export function runVerdict(
 
   if (strongSignal) reasons.push(`Signal ${signal.strength} (${signal.stars}★, ${signal.confidence}% conf)`)
   else reasons.push(`Signal only ${signal.strength} (${signal.stars}★)`)
+  if (signal.setupType !== 'NONE') reasons.push(`Setup: ${signal.setupNote}`)
   if (aligned) reasons.push('H1/H4 trend aligned')
   else reasons.push('Higher-timeframe trend not aligned')
   if (trending) reasons.push(`Trending regime (ADX ${scan.adx.toFixed(0)})`)
   else reasons.push(`Ranging regime (ADX ${scan.adx.toFixed(0)})`)
   reasons.push(inZone ? 'Price inside entry zone' : 'Price outside entry zone — wait for pullback')
   reasons.push(`R:R 1:${plan.rr.toFixed(2)}`)
+
+  // Discipline gate: never auto-approve a fresh entry into a high-impact event
+  // window — hold it on the watchlist until the event clears.
+  if (scan.eventRisk === 'HIGH') {
+    reasons.push(`Held for event risk: ${scan.eventNote}`)
+    return { verdict: 'WATCHLIST', reasons, finalStatus: 'HELD — EVENT WINDOW' }
+  }
+  if (scan.eventRisk === 'ELEVATED') {
+    reasons.push(`Note: ${scan.eventNote}`)
+  }
 
   // APPROVED demands strong confluence, alignment and price at the entry.
   if (approveScore >= 5 && strongSignal && aligned && inZone) {

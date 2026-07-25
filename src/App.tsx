@@ -3,6 +3,7 @@ import type { AccountConfig, MonitorEvent, PipelineOutput } from './engine'
 import {
   DEFAULT_ACCOUNT,
   INSTRUMENTS,
+  SETUP_LABEL,
   SimulatedProvider,
   backtest,
   fmtPrice,
@@ -294,6 +295,23 @@ function SignalPanel({ out }: { out: PipelineOutput }) {
           {s.strength} · {s.confidence}%
         </span>
       </div>
+      {s.setupType !== 'NONE' && (
+        <div
+          className="flex between"
+          style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px dashed var(--line)' }}
+        >
+          <div>
+            <div className="label" style={{ marginBottom: 2 }}>Setup Flagged</div>
+            <b className="mono" style={{ fontSize: 13, color: 'var(--orange)' }}>
+              ◎ {SETUP_LABEL[s.setupType].toUpperCase()}
+            </b>
+            <div className="label" style={{ fontSize: 9.5, marginTop: 2, textTransform: 'none', letterSpacing: 0 }}>
+              {s.setupNote}
+            </div>
+          </div>
+          <span className="chip">Q {s.setupQuality}</span>
+        </div>
+      )}
       {s.votes.map((v) => (
         <div key={v.name} className="vote">
           <span className="nm">{v.name}</span>
@@ -346,17 +364,38 @@ function RiskPanel({ out, account }: { out: PipelineOutput; account: AccountConf
 
 function ScanPanel({ out }: { out: PipelineOutput }) {
   const s = out.memo.scan
+  const eventColor = s.eventRisk === 'HIGH' ? 'var(--red)' : s.eventRisk === 'ELEVATED' ? 'var(--orange)' : 'var(--green)'
+  // Page-2 scanner inputs, each with a live read.
+  const inputs: [string, string, string][] = [
+    ['Price', `${s.changePct >= 0 ? '+' : ''}${s.changePct.toFixed(2)}%`, 'var(--ink-2)'],
+    ['Volume', `${s.volumePct.toFixed(0)}%`, s.volumePct >= 115 ? 'var(--orange)' : 'var(--ink-2)'],
+    ['Trend', s.htfTrend, s.htfTrend === 'LONG' ? 'var(--green)' : s.htfTrend === 'SHORT' ? 'var(--red)' : 'var(--muted)'],
+    ['News', s.eventRisk, eventColor],
+  ]
   return (
     <div className="card">
-      <h3><span className="idx">⊙</span> SCAN · MARKET STATE</h3>
+      <h3><span className="idx">⊙</span> SCAN · MARKET SCANNER</h3>
+      <div className="flex wrap" style={{ gap: 6, marginBottom: 10 }}>
+        {inputs.map(([k, v, c]) => (
+          <span key={k} className="chip" style={{ color: c, borderColor: c }}>
+            {k}: {v}
+          </span>
+        ))}
+      </div>
       <div className="drow"><span className="k">Instrument</span><span className="v">{s.instrument.symbol} · {s.instrument.name}</span></div>
       <div className="drow"><span className="k">Last Price</span><span className="v">{fmtPrice(s.lastPrice, s.instrument)}</span></div>
       <div className="drow"><span className="k">Regime</span><span className="v" style={{ color: s.regime === 'TRENDING' ? 'var(--orange)' : undefined }}>{s.regime}</span></div>
       <div className="drow"><span className="k">ADX (trend str.)</span><span className="v">{s.adx.toFixed(1)}</span></div>
       <div className="drow"><span className="k">ATR / Volatility</span><span className="v">{s.atrPct.toFixed(2)}%</span></div>
-      <div className="drow"><span className="k">H4 Trend</span><span className="v"><DirBadge direction={s.htfTrend} /></span></div>
-      <div className="drow"><span className="k">H1 Trend</span><span className="v"><DirBadge direction={s.ltfTrend} /></span></div>
+      <div className="drow"><span className="k">Volume vs Avg</span><span className="v" style={{ color: s.volumePct >= 115 ? 'var(--orange)' : undefined }}>{s.volumePct.toFixed(0)}%</span></div>
+      <div className="drow"><span className="k">H4 / H1 Trend</span><span className="v"><DirBadge direction={s.htfTrend} /> <DirBadge direction={s.ltfTrend} /></span></div>
       <div className="drow"><span className="k">Aligned</span><span className="v" style={{ color: s.trendAligned ? 'var(--green)' : 'var(--red)' }}>{s.trendAligned ? 'YES' : 'NO'}</span></div>
+      <div className="drow"><span className="k">Event / News Risk</span><span className="v" style={{ color: eventColor }}>{s.eventRisk}</span></div>
+      {s.eventRisk !== 'CLEAR' && (
+        <div className="label" style={{ fontSize: 9.5, marginTop: 6, textTransform: 'none', letterSpacing: 0, color: eventColor }}>
+          {s.eventNote}
+        </div>
+      )}
     </div>
   )
 }
